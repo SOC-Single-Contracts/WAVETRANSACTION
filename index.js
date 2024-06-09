@@ -17,7 +17,6 @@ async function solanaTransaction(SolanaTransaction){
 
   const response = await fetch(url);
   const transactions = await response.json();
-  console.log(transactions);
   const result = transactions.map(transaction => {
     if (!transaction.tokenTransfers || !transaction.nativeTransfers) {
       console.error('Invalid transaction format', transaction);
@@ -38,7 +37,7 @@ async function solanaTransaction(SolanaTransaction){
     return {
       type: transaction.type,
       signature: transaction.signature,
-      timestamp: transaction.timestamp,
+      timestamp: parseInt(transaction.timestamp),
       nativeBalanceChange,
       tokenChange,
       sendRecieve,
@@ -58,10 +57,9 @@ async function tronTransaction(addressTron)
   });
   address = addressTron;
   try {
-    const url = `${NETWORK}/v1/accounts/${address}/transactions?only_confirmed=true&limit=200&order_by=block_timestamp,desc`;
+    const url = `${NETWORK}/v1/accounts/${address}/transactions?only_confirmed=true&limit=10&order_by=block_timestamp,desc`;
     const fet = await fetch(url);
     const response = await fet.json();
-    console.log(response)
     const transactions = response.data.map(tx => {
       const contract = tx.raw_data.contract[0];
       const sender = tronWeb.address.fromHex(contract.parameter.value.owner_address);
@@ -69,7 +67,7 @@ async function tronTransaction(addressTron)
       return {
         type: contract.type,
         signature: tx.txID,
-        timestamp: tx.raw_data.timestamp,
+        timestamp: parseInt(tx.raw_data.timestamp),
         nativeBalanceChange: contract.parameter.value.amount ? tronWeb.fromSun(contract.parameter.value.amount) : 'N/A',
         tokenChange: "0",
         senderOrReceiver: address.toLowerCase() === sender.toLowerCase() ? 'Sent' : 'Received',
@@ -85,9 +83,9 @@ async function tronTransaction(addressTron)
     });
   }
 }
-async function getEVMtransactionBNB() {
+async function getEVMtransactionBNB(address) {
   try {
-    walletAddress = '0x187fE74B1CF6a78E8cFBBB6c096267cd1eB5F63D';
+    walletAddress = address;
     // const web3 = new Web3(new Web3.providers.HttpProvider(chain));
 
     let apiKey;
@@ -115,7 +113,7 @@ async function getEVMtransactionBNB() {
       ? "Transfer"
       : "Contract Interaction",
       tx: tx.hash,
-      timestamp : tx.timestamp,
+      timestamp : parseInt(tx.timestamp),
       nativeBalanceChange : tx.value / 1000000000000000000,
       tokenChange : 0, 
       // to: tx.to,
@@ -134,6 +132,55 @@ async function getEVMtransactionBNB() {
     
   }
 }
+async function getEVMtransactionETH(address) {
+  try {
+    walletAddress = address;
+    // const web3 = new Web3(new Web3.providers.HttpProvider(chain));
+
+    let apiKey;
+    let apiUrl;
+    apiKey = "FRK7H7B1WGN24HV3CY8CKDFUG5IE7XBXV6";
+    apiUrl = `https://api.etherscan.io/api?module=account&action=txlist&address=${walletAddress}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}`;
+    // if (chain === "https://bsc.publicnode.com") {
+    //   // For BSC, use BscScan API
+    //   apiKey = "FBBJRWSBP1P4KIF6QJDHKZHHZPTE7R9WCB";
+    //   apiUrl = `https://api.bscscan.com/api?module=account&action=txlist&address=${walletAddress}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}`;
+    // } else if (chain === "https://eth.drpc.org") {
+    //   // For Ethereum, use Etherscan API
+    //   apiKey = "FRK7H7B1WGN24HV3CY8CKDFUG5IE7XBXV6";
+    //   apiUrl = `https://api.etherscan.io/api?module=account&action=txlist&address=${walletAddress}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}`;
+    // }
+
+    // Make the API request
+    const fet = await fetch(apiUrl);
+    const response = await fet.json();
+    console.log(response)
+
+    // Extract and format transaction details
+    const transactions = response.result.slice(0, 50).map((tx) => ({
+      type :  tx.functionName == ''
+      ? "Transfer"
+      : "Contract Interaction",
+      tx: tx.hash,
+      timestamp : parseInt(tx.timestamp),
+      nativeBalanceChange : tx.value / 1000000000000000000,
+      tokenChange : 0, 
+      // to: tx.to,
+      // from: tx.from,
+      status: tx.txreceipt_status === "1" ? "Success" : "Failed",
+      sendRecieve:
+        tx.from.toLowerCase() === walletAddress.toLowerCase()
+          ? "Sent"
+          : "Received",
+      blockchain : "ETH",
+    }));
+
+   return transactions;
+  } catch (error) {
+    console.error(error);
+    
+  }
+}
 // getEVMtransaction()
 app.get('/GetHistory', async (req, res) => {
   const EVM = req.query.evm;
@@ -142,11 +189,14 @@ app.get('/GetHistory', async (req, res) => {
   console.log(EVM,TRON,Solana)
  var solanadata =  await solanaTransaction(Solana);
  var trondata =  await tronTransaction(TRON);
-//  var bnb = await getEVMtransactionBNB();
- const mergedTransactions = [...solanadata, ...trondata];
-// var data =  mergedTransactions.sort((a, b) => b.timestamp - a.timestamp);
+ var bnb = await getEVMtransactionBNB(EVM);
+ var eth = await getEVMtransactionETH(EVM);
+//  const mergedTransactions = [...solanadata, ...trondata];
+ const mergedTransactions = [bnb,eth,trondata,solanadata];
 
- res.json(mergedTransactions);
+var data =  mergedTransactions.sort((a, b) => b.timestamp - a.timestamp);
+
+ res.json(data);
 });
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
