@@ -8,7 +8,7 @@ let mainnet = 'https://api.trongrid.io'
 
 const NETWORK = mainnet
 
-async function solanaTransaction(SolanaTransaction){
+async function solanaTransaction(SolanaTransaction) {
   const userAccount = SolanaTransaction;
 
   let base_url = `https://api.helius.xyz/v0/addresses/${userAccount}/transactions?api-key=0570c943-5cbf-4ff4-9397-02270f156e68`;
@@ -41,16 +41,15 @@ async function solanaTransaction(SolanaTransaction){
       nativeBalanceChange,
       tokenChange,
       sendRecieve,
-      Blockchain :"Solana"
+      Blockchain: "Solana"
     };
   });
   return result;
   // console.log(result);
-  
+
 
 }
-async function tronTransaction(addressTron)
-{
+async function tronTransaction(addressTron) {
   const NETWORK = 'https://api.trongrid.io';
   const tronWeb = new TronWeb({
     fullHost: NETWORK,
@@ -71,7 +70,7 @@ async function tronTransaction(addressTron)
         nativeBalanceChange: contract.parameter.value.amount ? tronWeb.fromSun(contract.parameter.value.amount) : 'N/A',
         tokenChange: "0",
         senderOrReceiver: address.toLowerCase() === sender.toLowerCase() ? 'Sent' : 'Received',
-        blockchain : "Tron"
+        blockchain: "Tron"
       };
     });
 
@@ -109,13 +108,13 @@ async function getEVMtransactionBNB(address) {
 
     // Extract and format transaction details
     const transactions = response.result.slice(0, 50).map((tx) => ({
-      type :  tx.functionName == ''
-      ? "Transfer"
-      : "Contract Interaction",
+      type: tx.functionName == ''
+        ? "Transfer"
+        : "Contract Interaction",
       tx: tx.hash,
-      timestamp : parseInt(tx.timestamp),
-      nativeBalanceChange : tx.value / 1000000000000000000,
-      tokenChange : 0, 
+      timestamp: parseInt(tx.timeStamp),
+      nativeBalanceChange: tx.value / 1000000000000000000,
+      tokenChange: 0,
       // to: tx.to,
       // from: tx.from,
       status: tx.txreceipt_status === "1" ? "Success" : "Failed",
@@ -123,13 +122,13 @@ async function getEVMtransactionBNB(address) {
         tx.from.toLowerCase() === walletAddress.toLowerCase()
           ? "Sent"
           : "Received",
-      blockchain : "BNB",
+      blockchain: "BNB",
     }));
 
-   return transactions;
+    return transactions;
   } catch (error) {
     console.error(error);
-    
+
   }
 }
 async function getEVMtransactionETH(address) {
@@ -158,13 +157,13 @@ async function getEVMtransactionETH(address) {
 
     // Extract and format transaction details
     const transactions = response.result.slice(0, 50).map((tx) => ({
-      type :  tx.functionName == ''
-      ? "Transfer"
-      : "Contract Interaction",
+      type: tx.functionName == ''
+        ? "Transfer"
+        : "Contract Interaction",
       tx: tx.hash,
-      timestamp : parseInt(tx.timestamp),
-      nativeBalanceChange : tx.value / 1000000000000000000,
-      tokenChange : 0, 
+      timestamp: parseInt(tx.timeStamp),
+      nativeBalanceChange: tx.value / 1000000000000000000,
+      tokenChange: 0,
       // to: tx.to,
       // from: tx.from,
       status: tx.txreceipt_status === "1" ? "Success" : "Failed",
@@ -172,13 +171,13 @@ async function getEVMtransactionETH(address) {
         tx.from.toLowerCase() === walletAddress.toLowerCase()
           ? "Sent"
           : "Received",
-      blockchain : "ETH",
+      blockchain: "ETH",
     }));
 
-   return transactions;
+    return transactions;
   } catch (error) {
     console.error(error);
-    
+
   }
 }
 // getEVMtransaction()
@@ -186,17 +185,19 @@ app.get('/GetHistory', async (req, res) => {
   const EVM = req.query.evm;
   const TRON = req.query.tron;
   const Solana = req.query.solana;
-  console.log(EVM,TRON,Solana)
- var solanadata =  await solanaTransaction(Solana);
- var trondata =  await tronTransaction(TRON);
- var bnb = await getEVMtransactionBNB(EVM);
- var eth = await getEVMtransactionETH(EVM);
-//  const mergedTransactions = [...solanadata, ...trondata];
- const mergedTransactions = [bnb,eth,trondata,solanadata];
+  console.log(EVM, TRON, Solana)
+  var solanadata = await solanaTransaction(Solana);
+  var trondata = await tronTransaction(TRON);
+  var bnb = await getEVMtransactionBNB(EVM);
+  var eth = await getEVMtransactionETH(EVM);
+  //  const mergedTransactions = [...solanadata, ...trondata];
+  const mergedTransactions = [bnb, eth, trondata, solanadata];
 
-var data =  mergedTransactions.sort((a, b) => b.timestamp - a.timestamp);
+  const flattenedData = mergedTransactions.flat();
 
- res.json(data);
+  var data = flattenedData.sort((a, b) => b.timestamp - a.timestamp);
+
+  res.json(data);
 });
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
